@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html class='use-all-space'>
+<head>
+    <meta http-equiv='X-UA-Compatible' content='IE=Edge' />
+    <meta charset='UTF-8'>
+    <title>Maps SDK for Web - Vector map</title>
+    <meta name='viewport'
+          content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
+    <link rel='stylesheet' type='text/css' href='sdk/maps.css'/>
+</head>
+<body>
+    <div style='width:80vw; height: 80vh' id='map' class='map'></div>
+    <script src='sdk/maps-web.min.js'></script>
+    
+    <script>
+
+        var TORONTO = {lng: -79.37955665855566, lat: 43.648321745176986};
+        var NEW_DELHI = {lng: 77.2150811650605, lat: 28.65351027677407};
+
+        // Traffic Flow configuration
+        var trafficFlowConfig = {
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            theme: {
+                style: 'relative-delay', // relative,  absolute  or 'relative-delay'
+                source: 'vector'
+            },
+            refresh: 30000
+        };
+
+        var map = tt.map({
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            container: 'map',
+            basePath: 'sdk/',
+            theme: {
+                style: 'buildings',
+                layer: 'basic',
+                source: 'vector'
+            },
+            dragPan: true,
+            center: NEW_DELHI,
+            zoom: 16
+        });
+        map.addControl(new tt.FullscreenControl());
+        map.addControl(new tt.NavigationControl());
+
+        // Check the location on click
+        map.on('click', function(event) {
+            console.log(event.lngLat);
+        });
+
+        map.on('load', function() {
+            map.addTier(new tt.TrafficFlowTilesTier(trafficFlowConfig));
+            map.setPitch(60);
+        });
+    </script>
+</body>
+</html>
