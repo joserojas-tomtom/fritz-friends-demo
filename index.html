@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html class='use-all-space'>
+<head>
+    <meta http-equiv='X-UA-Compatible' content='IE=Edge' />
+    <meta charset='UTF-8'>
+    <title>Maps SDK for Web - Vector map</title>
+    <meta name='viewport'
+          content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
+    <link rel='stylesheet' type='text/css' href='sdk/maps.css'/>
+    <link rel='stylesheet' type='text/css' href='sdk/css-styles/routing.css' />
+    <link rel='stylesheet' type='text/css' href='sdk/css-styles/poi.css' />
+
+</head>
+
+<style>
+    .icon {
+        background-size: cover;
+        height: 30px;
+        width: 30px;
+    }
+</style>
+
+<body>
+    <table style="width:80vw">
+        <tr>
+            <th><font face = "courier" size = "5" color = "#000000">MAP</font></th>
+            <th><font face = "courier" size = "5" color = "#000000">Instructions</font></th> 
+        </tr>
+        <tr>
+            <td>
+                <div style='width:60vw; height: 80vh' id='map' class='map'></div>
+            </td>
+            <td style="vertical-align: top">
+                <!-- EMPTY LIST FOR INSTRUCTIONS TO BE POPULATED-->
+                <ol id='instructions'>
+                </ol>
+            </td>
+        </tr>
+    </table>
+    <font face = "courier" size = "5" color = "#000000">
+        <label><input type="checkbox" name="checkbox" value="yes">Reverse Geocode</label>
+        <div id='address'>?</div>
+    </font>
+     
+    
+    <script src='sdk/maps-web.min.js'></script>
+    <script src='sdk/services-web.min.js'></script>
+    
+    <script>
+
+        var map;
+        var currentLocationMarker = null;
+        var destinationMarker = null;
+        var TORONTO = {lng: -79.37955665855566, lat: 43.648321745176986};
+        var NEW_DELHI = {lng: 77.2150811650605, lat: 28.65351027677407};
+        var VALENCIA = {lng: -0.3766344517331106, lat: 39.47280034179437};
+
+        var getCurrentLocationIcon = function() {
+            var element = document.createElement('div');
+            element.className = 'icon tt-icon-shield';
+            var innerElement = document.createElement('div');
+            innerElement.className = 'icon tt-icon-start';
+            element.appendChild(innerElement);
+            return element;
+        }
+
+        var getDestinationIcon = function() {
+            var element = document.createElement('div');
+            element.className = 'icon tt-icon-shield';
+            var innerElement = document.createElement('div');
+            innerElement.className = 'icon tt-icon-end';
+            element.appendChild(innerElement);
+            return element;
+        }
+
+        var getCoffeeIcon = function() {
+            var element = document.createElement('div');
+            element.className = 'icon tt-icon-shield';
+            var innerElement = document.createElement('div');
+            innerElement.className = 'icon tt-icon-ic_map_poi_120-white';
+            element.appendChild(innerElement);
+            return element;
+        }
+
+        // Add the array of markers POIs to the map
+        var currentMarkers = [];
+        var addPOIs = function(array) {
+            if (currentMarkers.length != 0) {
+                currentMarkers.forEach( function(marker){
+                    marker.remove();
+                });
+            }
+            currentMarkers = [];
+            // Create new Markers
+            array.forEach(function(poi){
+                console.log('adding '+JSON.stringify(poi));
+                var marker = new tt.Marker(getCoffeeIcon());
+                marker.setLngLat(poi.position);
+                marker.addTo(map);
+
+                // Add a nice popup with the name
+                var popup = new tt.Popup();
+                popup.setText(poi.poi.name);
+                marker.setPopup(popup);
+                currentMarkers.push(marker);
+            });   
+        }
+
+        // Text is a search keyword for the Fuzzy Search API
+        // coordinates is an array of coordinates representing the route.
+        var searchFor = function(text, coordinates) {
+            tt.services.alongRouteSearch({
+                key: 'UA5YOBzaMtA7KA94UFrDSLOvVguzOuyA',
+                limit: 20,
+                maxDetourTime: 50,
+                query: text,
+                route: coordinates
+            })
+            .go()
+            .then(function(response) {
+                console.log('SUMMARY:');
+                console.table(response.summary);
+                console.log('RESULTS:');
+                console.table(response.results);
+                // Now lets add those POIs to the map
+                addPOIs(response.results);
+            });
+        }
+
+        // Reverse geocode a location to get the address, return a promise
+        var fetchAddress = function (coordinates) {
+            return tt.services.reverseGeocode({
+                key: 'UA5YOBzaMtA7KA94UFrDSLOvVguzOuyA',
+                position: coordinates
+            }).go();
+        };
+
+        var routeLayer = null;
+        var displayRoute = function(geoJSON) {
+            routeLayer = map.addLayer({
+                'id': 'route',
+                'type': 'line',
+                'source': {
+                    'type': 'geojson',
+                    'data': geoJSON
+                },
+                'layout': {
+                    'line-join': 'round',
+                    'line-cap': 'round'
+                },
+                'paint': {
+                    'line-color': 'blue',
+                    'line-width': 16,
+                    'line-dasharray': [1, 1]
+                }
+            });
+        }
+
+        // Array of instructions to be added to the List
+        var displayInstructions = function(instructions) {
+            var ul = document.getElementById("instructions");
+
+            // First we remove ALL the currently populated instructions
+            var lis = document.querySelectorAll('#instructions li');
+            for(var i=0; li=lis[i]; i++) {
+                li.parentNode.removeChild(li);
+            }
+
+            for (var i = 0; i < instructions.length; i++) {
+                var message = instructions[i].message;
+                var li = document.createElement('li');
+                if (i > 0) {
+                    var distance = instructions[i].routeOffsetInMeters;
+                    li.appendChild(document.createTextNode('In '+distance+ 'mts '));
+                }
+                li.appendChild(document.createTextNode(message));
+                ul.appendChild(li);
+            }
+        }
+
+        var recalculateRoute = function() {
+            // First REMOVE THE OLD array!
+            routeOptions.locations = [];
+            // Update the route Options
+            routeOptions.locations.push(currentLocationMarker.getLngLat());
+            routeOptions.locations.push(destinationMarker.getLngLat());
+            // Now we request the route
+            tt.services.calculateRoute(routeOptions).go().then(
+                function(routeData) {
+                    var geoJSON = routeData.toGeoJson();
+                    console.log(geoJSON);
+                    displayRoute(geoJSON);
+                    displayInstructions(geoJSON.features[0].properties.guidance.instructions);
+                    searchFor('restaurants', geoJSON.features[0].geometry.coordinates);
+                }
+            );
+        }
+
+        // Traffic Flow configuration
+        var trafficFlowConfig = {
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            theme: {
+                style: 'relative-delay', // relative,  absolute  or 'relative-delay'
+                source: 'vector'
+            },
+            refresh: 30000
+        };
+
+        // Route Options - Pedestrian route, 3 alternatives.
+        var routeOptions = {
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            departAt: 'now',
+            locations : [],
+            instructionsType : 'text',
+            traffic: false,
+            travelMode: 'pedestrian'
+        };
+
+        map = tt.map({
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            container: 'map',
+            basePath: 'sdk/',
+            theme: {
+                style: 'buildings',
+                layer: 'basic',
+                source: 'vector'
+            },
+            dragPan: true,
+            center: TORONTO,
+            zoom: 16
+        });
+        map.addControl(new tt.FullscreenControl());
+        map.addControl(new tt.NavigationControl());
+
+        // Check the location on click
+        map.on('click', function(event) {
+            console.log(event.lngLat);
+            fetchAddress(event.lngLat)
+                .then(function (reverseGeocodeResponse) {
+                    console.log(reverseGeocodeResponse);
+                    var address = reverseGeocodeResponse.addresses[0].address.freeformAddress;
+                    if (!address) {
+                        throw new Error('Could not find any matching address.');
+                    }
+                    document.getElementById("address").innerHTML=address; 
+
+                    // if we already have a marker then we remove it
+                    if (currentLocationMarker == null) {
+                        // Add a marker
+                        currentLocationMarker = new tt.Marker(getCurrentLocationIcon());
+                        currentLocationMarker.setLngLat(reverseGeocodeResponse.addresses[0].position);
+                        currentLocationMarker.addTo(map);
+                    }
+                    else {
+                        if ( destinationMarker != null) {
+                            // do nothing..
+                            return;
+                        }
+                        // Add the destination marker and calculate a pedestrian ROUTE
+                        // with 3 alternatives.
+                        destinationMarker = new tt.Marker(getDestinationIcon());
+                        destinationMarker.setLngLat(reverseGeocodeResponse.addresses[0].position);
+                        destinationMarker.addTo(map);
+                        destinationMarker.setDraggable(true);
+                        destinationMarker.on('dragend', function(){
+                            map.removeLayer('route');
+                            map.removeSource('route');
+                            recalculateRoute();
+                        });
+                        
+                        recalculateRoute();
+                    }
+                    
+                });
+
+        });
+
+        map.on('load', function() {
+            map.addTier(new tt.TrafficFlowTilesTier(trafficFlowConfig));
+            map.setPitch(60);
+        });
+    </script>
+</body>
+</html>
