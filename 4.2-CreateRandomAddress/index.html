@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html class='use-all-space'>
+<head>
+    <meta http-equiv='X-UA-Compatible' content='IE=Edge' />
+    <meta charset='UTF-8'>
+    <title>Maps SDK for Web - Vector map</title>
+    <meta name='viewport'
+          content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'/>
+    <link rel='stylesheet' type='text/css' href='sdk/maps.css'/>
+    <link rel='stylesheet' type='text/css' href='sdk/css-styles/routing.css' />
+
+</head>
+
+<style>
+    .icon {
+        background-size: cover;
+        height: 30px;
+        width: 30px;
+    }
+</style>
+
+<body>
+    <div style='width:80vw; height: 80vh' id='map' class='map'></div>
+    <font face = "courier" size = "5" color = "#000000">
+        <label>Reverse Geocode</label>         
+        <div id='address'>?</div>
+        <div>Secret Address : </div>
+        <div id='secret-address'></div>
+    </font>
+     
+    <script src='sdk/maps-web.min.js'></script>
+    <script src='sdk/services-web.min.js'></script>
+    
+    <script>
+
+        var map;
+        var currentLocationMarker = null;
+        var TORONTO = {lng: -79.37955665855566, lat: 43.648321745176986};
+        var NEW_DELHI = {lng: 77.2150811650605, lat: 28.65351027677407};
+        var VALENCIA = {lng: -0.3766344517331106, lat: 39.47280034179437};
+
+        var getCurrentLocationIcon = function() {
+            var element = document.createElement('div');
+            element.className = 'icon tt-icon-shield';
+            var innerElement = document.createElement('div');
+            innerElement.className = 'icon tt-icon-start';
+            element.appendChild(innerElement);
+            return element;
+        }
+
+        // Reverse geocode a location to get the address, return a promise
+        var fetchAddress = function (coordinates) {
+            return tt.services.reverseGeocode({
+                key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+                position: coordinates
+            }).go();
+        };
+
+        var secretLocation;
+        var secretAddress;
+
+
+        map = tt.map({
+            key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+            container: 'map',
+            basePath: 'sdk/',
+            theme: {
+                style: 'nolabels',
+                layer: 'basic',
+                source: 'vector'
+            },
+            dragPan: true,
+            center: VALENCIA,
+            zoom: 14
+        });
+        map.addControl(new tt.FullscreenControl());
+        map.addControl(new tt.NavigationControl());
+
+        // Check the location on click
+        map.on('click', function(event) {
+            console.log(event.lngLat);
+            fetchAddress(event.lngLat)
+                .then(function (reverseGeocodeResponse) {
+                    console.log(reverseGeocodeResponse);
+                    var address = reverseGeocodeResponse.addresses[0].address.freeformAddress;
+                    if (!address) {
+                        throw new Error('Could not find any matching address.');
+                    }
+                    document.getElementById("address").innerHTML=address; 
+
+                    // if we already have a marker then we remove it
+                    if (currentLocationMarker != null) {
+                        currentLocationMarker.remove();
+                    }
+                    // Add a marker
+                    currentLocationMarker = new tt.Marker(getCurrentLocationIcon());
+                    currentLocationMarker.setLngLat(reverseGeocodeResponse.addresses[0].position);
+                    currentLocationMarker.addTo(map);
+
+            
+
+                });
+        });
+
+        map.on('load', function() {
+            map.setPitch(10);
+            // Get the random location
+            secretLocation = getRandomLocation(map.getCenter(),50); 
+            console.log("random:"+ secretLocation.lat+ "," + secretLocation.lng);
+            fetchAddress(secretLocation)
+            .then(function (response){
+                secretAddress = response.addresses[0].address.freeformAddress;
+                document.getElementById("secret-address").innerHTML=secretAddress; 
+            });
+        });
+
+        // Return a LatLng object arounf the center location inside a radius
+        var getRandomLocation = function(point, radius) {
+            x0 = point.lat;
+            y0 = point.lng;
+            console.log("XY:"+x0+" "+y0);
+
+            // Convert radius from meters to degrees
+            var radiusInDegrees = radius / 111000.0;
+
+            var u = Math.random();
+            var v = Math.random();
+            var w = radiusInDegrees * Math.sqrt(u);
+            var t = 2 * Math.PI * v;
+            var x = w * Math.cos(t);
+            var y = w * Math.sin(t);
+
+            // Adjust the x-coordinate for the shrinking of the east-west distances
+            var new_x = x / Math.cos(y0);
+
+            var foundLatitude = new_x + x0;
+            var foundLongitude = y + y0;
+            return {'lat': foundLatitude, 'lng': foundLongitude}; // new latLng()
+        }
+    </script>
+</body>
+</html>

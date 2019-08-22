@@ -149,9 +149,9 @@
                     'line-cap': 'round'
                 },
                 'paint': {
-                    'line-color': 'blue',
-                    'line-width': 16,
-                    'line-dasharray': [1, 1]
+                    'line-color': 'darkgreen',
+                    'line-width': 14,
+                    'line-dasharray': [3, 3]
                 }
             });
         }
@@ -277,6 +277,11 @@
 
         map.on('load', function() {
             map.addTier(new tt.TrafficFlowTilesTier(trafficFlowConfig));
+            map.addTier(new tt.TrafficIncidentTier({
+                key: <api key>,//your traffic incidents api key goes here
+                incidentDetails: true, //or provide more detailed configuration
+                incidentTiles: true //or provide more detailed configuration
+            }));
             map.setPitch(60);
         });
     </script>
