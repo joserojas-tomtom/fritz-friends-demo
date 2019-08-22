@@ -23,9 +23,12 @@
     <div style='width:80vw; height: 80vh' id='map' class='map'></div>
     <font face = "courier" size = "5" color = "#000000">
         <label>Reverse Geocode</label>         
-        <div id='address'>?</div>
+        <div id='address'>? - Click on the map first</div>
         <div>Secret Address : </div>
         <div id='secret-address'></div>
+        <div>Distance in Meters : </div>
+        <div id='distance'>? - Click on the map first</div>
+
     </font>
      
     <script src='sdk/maps-web.min.js'></script>
@@ -55,6 +58,26 @@
                 position: coordinates
             }).go();
         };
+
+        var calculateDistance = function(start,end) {
+            var routeOptions = {
+                key: 'GPKi145tvEGK5CI6LYtpU0ALE2oR2uN3',
+                departAt: 'now',
+                locations : [],
+                travelMode: 'pedestrian'
+            };
+            // Update the route Options
+            routeOptions.locations.push(start);
+            routeOptions.locations.push(end);
+            // Now we request the route
+            tt.services.calculateRoute(routeOptions).go().then(
+                function(routeData) {
+                    var geoJSON = routeData.toGeoJson();
+                    // Update the label with the distance
+                    document.getElementById("distance").innerHTML=routeData.routes[0].summary.lengthInMeters + "mts";
+                }
+            );
+        }
 
         var secretLocation;
         var secretAddress;
@@ -97,8 +120,9 @@
                     currentLocationMarker.setLngLat(reverseGeocodeResponse.addresses[0].position);
                     currentLocationMarker.addTo(map);
 
-            
-
+                    // Now lets calculate the distance to the secret address
+                    // For that we use the Routing API AND get only the sumary for a pedestrian route
+                    calculateDistance(secretLocation, reverseGeocodeResponse.addresses[0].position);
                 });
         });
 
@@ -109,7 +133,9 @@
             console.log("random:"+ secretLocation.lat+ "," + secretLocation.lng);
             fetchAddress(secretLocation)
             .then(function (response){
+                // Reverse Geocode the secret location
                 secretAddress = response.addresses[0].address.freeformAddress;
+                // Display the secret address
                 document.getElementById("secret-address").innerHTML=secretAddress; 
             });
         });
